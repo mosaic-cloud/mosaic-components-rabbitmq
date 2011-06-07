@@ -68,9 +68,19 @@ boot (mosaic_rabbitmq, start) ->
 boot (mosaic_rabbitmq_rabbit, load) ->
 	MandatoryApplicationsStep1 = [sasl, os_mon, mnesia],
 	MandatoryApplicationsStep2 = [rabbit, amqp_client],
-	OptionalApplicationsStep1 = [inets, crypto, mochiweb, webmachine, rabbit_mochiweb],
-	OptionalApplicationsStep2 = [rabbit_management_agent, rabbit_management],
 	try
+		{ok, OptionalApplicationsStep1, OptionalApplicationsStep2} = case application:get_env (mosaic_rabbitmq, management_enabled) of
+			{ok, true} ->
+				{ok,
+						[inets, crypto, mochiweb, webmachine, rabbit_mochiweb],
+						[rabbit_management_agent, rabbit_management]};
+			{ok, false} ->
+				{ok, [], []};
+			{ok, Enabled} ->
+				throw ({error, {invalid_configuration, {management_enabled, Enabled}}});
+			undefined ->
+				throw ({error, {invalid_configuration, {management_enabled, undefined}}})
+		end,
 		ok = lists:foreach (
 				fun (Application) ->
 					ok = case boot (Application, load) of
@@ -92,9 +102,19 @@ boot (mosaic_rabbitmq_rabbit, start) ->
 		ok ->
 			MandatoryApplicationsStep1 = [sasl, os_mon, mnesia],
 			MandatoryApplicationsStep2 = [rabbit, amqp_client],
-			OptionalApplicationsStep1 = [inets, crypto, mochiweb, webmachine, rabbit_mochiweb],
-			OptionalApplicationsStep2 = [rabbit_management_agent, rabbit_management],
 			try
+				{ok, OptionalApplicationsStep1, OptionalApplicationsStep2} = case application:get_env (mosaic_rabbitmq, management_enabled) of
+					{ok, true} ->
+						{ok,
+								[inets, crypto, mochiweb, webmachine, rabbit_mochiweb],
+								[rabbit_management_agent, rabbit_management]};
+					{ok, false} ->
+						{ok, [], []};
+					{ok, Enabled} ->
+						throw ({error, {invalid_configuration, {management_enabled, Enabled}}});
+					undefined ->
+						throw ({error, {invalid_configuration, {management_enabled, undefined}}})
+				end,
 				ok = lists:foreach (
 						fun (Application) ->
 							ok = case boot (Application, start) of

@@ -26,6 +26,12 @@ handle_terminate (State) ->
 	{stop, normal, State}.
 
 
+handle_call (Correlation, [{<<"operation">>, <<"get-broker-endpoint">>}], <<>>, State = #state{status = executing}) ->
+	{ok, Ip} = application:get_env (mosaic_rabbitmq, broker_socket_ip),
+	{ok, Port} = application:get_env (mosaic_rabbitmq, broker_socket_port),
+	ok = trigger_call_return (Correlation, [{<<"type">>, <<"tcp">>}, {<<"ip">>, Ip}, {<<"port">>, Port}], <<>>, State),
+	{ok, State};
+	
 handle_call (_Correlation, _MetaData, _Data, State = #state{}) ->
 	{stop, {error, unexpected_call}, State}.
 
@@ -34,8 +40,25 @@ handle_cast (_MetaData, _Data, State = #state{}) ->
 	{stop, {error, unexpected_cast}, State}.
 
 
-handle_exchange_return (_Correlation, _MetaData, _Data, State = #state{}) ->
-	{stop, {error, unexpected_exchange_return}, State}.
+handle_call_return (_Correlation, _MetaData, _Data, State = #state{}) ->
+	{stop, {error, unexpected_call_return}, State}.
+
+
+handle_register_return (Correlation, Outcome, OldState = #state{status = registering, correlation = Correlation}) ->
+	case Outcome of
+		ok ->
+			case mosaic_rabbitmq_app:boot (mosaic_rabbitmq_rabbit, start) of
+				ok ->
+					{ok, OldState#state{status = executing, correlation = none}};
+				Error = {error, _Reason} ->
+					{stop, Error, OldState}
+			end;
+		{error, Reason} ->
+			{stop, {error, {register_failed, Reason}}, OldState}
+	end;
+	
+handle_register_return (_Correlation, _Outcome, State = #state{}) ->
+	{stop, {error, unexpected_register_return}, State}.
 
 
 handle_resources_return (Correlation, Outcome, OldState = #state{identifier = Identifier, status = acquiring, correlation = Correlation}) ->
@@ -64,17 +87,16 @@ handle_resources_return (Correlation, Outcome, OldState = #state{identifier = Id
 							Error1 = {error, _Reason1} ->
 								throw (Error1)
 						end,
+						ok = application:set_env (mosaic_rabbitmq, broker_socket_ip, BrokerSocketIp),
+						ok = application:set_env (mosaic_rabbitmq, broker_socket_port, BrokerSocketPort),
 						ok = application:set_env (rabbit, tcp_listeners, [{erlang:binary_to_list (BrokerSocketIp), BrokerSocketPort}]),
 						ok = application:set_env (rabbit_mochiweb, port, ManagementSocketPort),
 						ok = application:set_env (mnesia, dir, "/tmp/mosaic-rabbitmq/" ++ erlang:binary_to_list (Identifier) ++ "/mnesia"),
 						ok = application:set_env (mnesia, core_dir, "/tmp/mosaic-rabbitmq/" ++ erlang:binary_to_list (Identifier) ++ "/mnesia"),
-						ok = case mosaic_rabbitmq_app:boot (mosaic_rabbitmq_rabbit, start) of
-							ok ->
-								ok;
-							Error2 = {error, _Reason2} ->
-								throw (Error2)
-						end,
-						{ok, OldState#state{status = running, correlation = none}}
+						{ok, Group} = application:get_env (mosaic_rabbitmq, group),
+						{ok, NewCorrelation} = correlation (),
+						ok = trigger_register (NewCorrelation, erlang:list_to_binary (Group), OldState),
+						{ok, OldState#state{status = registering, correlation = NewCorrelation}}
 					catch
 						throw : Error = {error, _Reason} ->
 							{stop, Error, OldState}
@@ -213,7 +235,11 @@ handle_exchange (MetaData, Data, State = #state{}) ->
 		[{<<"action">>, <<"cast">>}, {<<"meta-data">>, {struct, RequestMetaData}}] ->
 			handle_cast (RequestMetaData, Data, State);
 		[{<<"action">>, <<"return">>}, {<<"correlation">>, Correlation}, {<<"meta-data">>, {struct, RequestMetaData}}] when is_binary (Correlation) ->
-			handle_exchange_return (Correlation, RequestMetaData, Data, State);
+			handle_call_return (Correlation, RequestMetaData, Data, State);
+		[{<<"action">>, <<"register-return">>}, {<<"correlation">>, Correlation}, {<<"ok">>, true}] when is_binary (Correlation), (Data =:= <<>>) ->
+			handle_register_return (Correlation, ok, State);
+		[{<<"action">>, <<"register-return">>}, {<<"correlation">>, Correlation}, {<<"error">>, Reason}, {<<"ok">>, false}] when is_binary (Correlation), (Data =:= <<>>) ->
+			handle_register_return (Correlation, {error, Reason}, State);
 		_ ->
 			{stop, {error, {invalid_exchange_packet, MetaData, Data}}, State}
 	end.
@@ -255,13 +281,22 @@ trigger_cast (Component, RequestMetaData, RequestData, State = #state{})
 			RequestData, State).
 
 
-trigger_exchange_return (Correlation, ReplyMetaData, ReplyData, State = #state{})
+trigger_call_return (Correlation, ReplyMetaData, ReplyData, State = #state{})
 		when is_binary (Correlation), is_list (ReplyMetaData), is_binary (ReplyData) ->
 	trigger_packet (
 			[
 				{<<"__type__">>, <<"exchange">>}, {<<"action">>, <<"return">>},
 				{<<"correlation">>, Correlation}, {<<"meta-data">>, ReplyMetaData}],
 			ReplyData, State).
+
+
+trigger_register (Correlation, Group, State = #state{})
+		when is_binary (Correlation), is_binary (Group) ->
+	trigger_packet (
+			[
+				{<<"__type__">>, <<"exchange">>}, {<<"action">>, <<"register">>},
+				{<<"correlation">>, Correlation}, {<<"group">>, Group}],
+			<<>>, State).
 
 
 trigger_acquire (Correlation, Resources, State = #state{})
