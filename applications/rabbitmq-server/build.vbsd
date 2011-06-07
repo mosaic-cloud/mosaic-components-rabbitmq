@@ -1,0 +1,18 @@
+
+(vbs:require-erlang)
+
+(vbs:define-erlang-application 'rabbit
+	erl: "\\./(repositories/rabbitmq-server/src|\\.generated)/.*\\.erl"
+	hrl: "\\./(repositories/rabbitmq-server/include|\\.generated)/.*\\.hrl"
+	additional-ebin: "\\./\\.generated/rabbit\\.app")
+
+(vbs:define-erlang-application 'rabbit_common
+	erl: "\\./(repositories/rabbitmq-server/src|\\.generated)/(rabbit_writer|rabbit_reader|rabbit_framing_amqp_0_8|rabbit_framing_amqp_0_9_1|rabbit_framing_channel|rabbit_basic|rabbit_binary_generator|rabbit_binary_parser|rabbit_channel|rabbit_exchange_type|rabbit_misc|rabbit_net|rabbit_heartbeat|rabbit_msg_store_index|gen_server2|priority_queue|supervisor2)\\.erl"
+	hrl: "\\./(repositories/rabbitmq-server/include|\\.generated)/.*\\.hrl"
+	additional-ebin: "\\./\\.generated/rabbit_common\\.app")
+
+(vbs:define-erlang-application 'amqp_client
+	dependencies: 'rabbit_common
+	erl: "\\./repositories/rabbitmq-erlang-client/src/.*\\.erl"
+	hrl: "\\./repositories/rabbitmq-erlang-client/include/.*\\.hrl"
+	additional-ebin: "\\./\\.generated/amqp_client\\.app")

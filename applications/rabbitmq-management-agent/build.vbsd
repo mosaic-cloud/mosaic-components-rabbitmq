@@ -1,0 +1,7 @@
+
+(vbs:require-erlang)
+
+(vbs:define-erlang-application 'rabbit_management_agent
+	dependencies: '(rabbit_common amqp_client)
+	erl: "\\./repositories/rabbitmq-management-agent/src/.*\\.erl"
+	additional-ebin: "\\./\\.generated/rabbit_management_agent\\.app")

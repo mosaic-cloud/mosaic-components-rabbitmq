@@ -1,0 +1,7 @@
+
+(vbs:require-erlang)
+
+(vbs:define-erlang-application 'rabbit_mochiweb
+	dependencies: '(mochiweb webmachine)
+	erl: "\\./repositories/rabbitmq-mochiweb/src/.*\\.erl"
+	additional-ebin: "\\./\\.generated/rabbit_mochiweb\\.app")
