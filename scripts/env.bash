@@ -30,6 +30,7 @@ _erl_args=(
 	+Bd +Ww
 	-env ERL_CRASH_DUMP /dev/null
 	-env ERL_LIBS "${_erl_libs}"
+	-env LANG C
 )
 
 _ninja_file="${_outputs}/.make.ninja"
