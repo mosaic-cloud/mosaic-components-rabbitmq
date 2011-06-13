@@ -15,6 +15,7 @@ _erl_argv=(
 	"${_erl}"
 		"${_erl_args[@]}"
 		-noinput -noshell
+		-name "mosaic-rabbitmq-${_identifier}@${_erl_host}" -setcookie "${_erl_cookie}"
 		-boot start_sasl
 		-config "${_outputs}/erlang/applications/mosaic_rabbitmq/priv/mosaic_rabbitmq.config"
 		-run mosaic_component_app boot

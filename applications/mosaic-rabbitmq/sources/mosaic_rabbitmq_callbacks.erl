@@ -8,7 +8,7 @@
 -export ([init/0, terminate/2, handle_call/5, handle_cast/4, handle_info/2]).
 
 
--import (mosaic_enforcements, [enforce_ok/1, enforce_ok_1/1]).
+-import (mosaic_enforcements, [enforce_ok/1, enforce_ok_1/1, enforce_ok_2/1]).
 
 
 -record (state, {status}).
@@ -21,8 +21,7 @@ init () ->
 
 
 terminate (_Reason, _State = #state{}) ->
-	_ = erlang:spawn (fun trigger_stop/0),
-	ok.
+	stop_applications ().
 
 
 handle_call (<<"mosaic-rabbitmq:get-broker-endpoint">>, null, <<>>, _Sender, State = #state{status = executing}) ->
@@ -89,8 +88,7 @@ handle_info ({mosaic_rabbitmq_callbacks_internals, trigger_initialize}, OldState
 		ok = enforce_ok (application:set_env (rabbit_mochiweb, port, ManagementSocketPort)),
 		ok = enforce_ok (application:set_env (mnesia, dir, "/tmp/mosaic/components/rabbitmq/" ++ IdentifierString ++ "/mnesia")),
 		ok = enforce_ok (application:set_env (mnesia, core_dir, "/tmp/mosaic/components/rabbitmq/" ++ IdentifierString ++ "/mnesia")),
-		ok = enforce_ok (trigger_start (mosaic_rabbitmq, start)),
-		ok = enforce_ok (trigger_start (mosaic_rabbitmq_rabbit, start)),
+		ok = enforce_ok (start_applications ()),
 		ok = if
 			(OsEnvGroup =/= undefined) ->
 				ok = enforce_ok (mosaic_component_callbacks:register (OsEnvGroup)),
@@ -111,8 +109,7 @@ handle_info (Message, State = #state{}) ->
 
 configure () ->
 	try
-		ok = enforce_ok (trigger_start (mosaic_rabbitmq, load)),
-		ok = enforce_ok (trigger_start (mosaic_rabbitmq_rabbit, load)),
+		ok = enforce_ok (load_applications ()),
 		HarnessInputDescriptor = enforce_ok_1 (mosaic_generic_coders:os_env_get (mosaic_component_harness_input_descriptor,
 					{decode, fun mosaic_generic_coders:decode_integer/1}, {error, missing_harness_input_descriptor})),
 		HarnessOutputDescriptor = enforce_ok_1 (mosaic_generic_coders:os_env_get (mosaic_component_harness_output_descriptor,
@@ -124,61 +121,38 @@ configure () ->
 	catch throw : Error = {error, _Reason} -> Error end.
 
 
-trigger_start (mosaic_rabbitmq_rabbit, load) ->
+resolve_applications () ->
+	ManagementEnabled = enforce_ok_1 (mosaic_generic_coders:application_env_get (management_enabled, mosaic_rabbitmq,
+				{validate, {is_boolean, invalid_management_enabled}}, {error, missing_management_enabled})),
+	MandatoryApplicationsStep1 = [sasl, os_mon, mnesia],
+	MandatoryApplicationsStep2 = [rabbit, amqp_client],
+	OptionalApplicationsStep1 = if ManagementEnabled -> [inets, crypto, mochiweb, webmachine, rabbit_mochiweb]; true -> [] end,
+	OptionalApplicationsStep2 = if ManagementEnabled -> [rabbit_management_agent, rabbit_management]; true -> [] end,
+	{ok, MandatoryApplicationsStep1 ++ OptionalApplicationsStep1, MandatoryApplicationsStep2 ++ OptionalApplicationsStep2}.
+
+
+load_applications () ->
 	try
-		ManagementEnabled = enforce_ok_1 (mosaic_generic_coders:application_env_get (management_enabled, mosaic_rabbitmq,
-					{validate, {is_boolean, invalid_management_enabled}}, {error, missing_management_enabled})),
-		MandatoryApplicationsStep1 = [sasl, os_mon, mnesia],
-		MandatoryApplicationsStep2 = [rabbit, amqp_client],
-		OptionalApplicationsStep1 = if ManagementEnabled -> [inets, crypto, mochiweb, webmachine, rabbit_mochiweb]; true -> [] end,
-		OptionalApplicationsStep2 = if ManagementEnabled -> [rabbit_management_agent, rabbit_management]; true -> [] end,
-		ok = lists:foreach (
-					fun (Application) -> ok = enforce_ok (trigger_start (Application, load)) end,
-					MandatoryApplicationsStep1 ++ OptionalApplicationsStep1 ++ MandatoryApplicationsStep2 ++ OptionalApplicationsStep2),
+		ok = enforce_ok (mosaic_application_tools:load (mosaic_rabbitmq, with_dependencies)),
+		{ApplicationsStep1, ApplicationsStep2} = enforce_ok_2 (resolve_applications ()),
+		ok = enforce_ok (mosaic_application_tools:load (ApplicationsStep1 ++ ApplicationsStep2, without_dependencies)),
 		ok
-	catch throw : Error = {error, _Reason} -> Error end;
-	
-trigger_start (mosaic_rabbitmq_rabbit, start) ->
+	catch throw : Error = {error, _Reason} -> Error end.
+
+
+start_applications () ->
 	try
-		ManagementEnabled = enforce_ok_1 (mosaic_generic_coders:application_env_get (management_enabled, mosaic_rabbitmq,
-					{validate, {is_boolean, invalid_management_enabled}}, {error, missing_management_enabled})),
-		MandatoryApplicationsStep1 = [sasl, os_mon, mnesia],
-		MandatoryApplicationsStep2 = [rabbit, amqp_client],
-		OptionalApplicationsStep1 = if ManagementEnabled -> [inets, crypto, mochiweb, webmachine, rabbit_mochiweb]; true -> [] end,
-		OptionalApplicationsStep2 = if ManagementEnabled -> [rabbit_management_agent, rabbit_management]; true -> [] end,
-		ok = lists:foreach (
-					fun (Application) -> ok = enforce_ok (trigger_start (Application, start)) end,
-					MandatoryApplicationsStep1 ++ OptionalApplicationsStep1),
+		{ApplicationsStep1, ApplicationsStep2} = enforce_ok_2 (resolve_applications ()),
+		ok = enforce_ok (mosaic_application_tools:start (ApplicationsStep1, without_dependencies)),
 		ok = enforce_ok (rabbit:prepare ()),
-		ok = lists:foreach (
-					fun (Application) -> ok = enforce_ok (trigger_start (Application, start)) end,
-					MandatoryApplicationsStep2 ++ OptionalApplicationsStep2),
+		ok = enforce_ok (mosaic_application_tools:start (ApplicationsStep2, without_dependencies)),
+		ok = enforce_ok (mosaic_application_tools:start (mosaic_rabbitmq, with_dependencies)),
 		ok
-	catch throw : Error = {error, _Reason} -> Error end;
-	
-trigger_start (Application, load)
-		when is_atom (Application) ->
-	case application:load (Application) of
-		ok ->
-			ok;
-		{error, {already_loaded, Application}} ->
-			ok;
-		Error = {error, _Reason} ->
-			Error
-	end;
-	
-trigger_start (Application, start)
-		when is_atom (Application) ->
-	case application:start (Application) of
-		ok ->
-			ok;
-		{error, {already_started, Application}} ->
-			ok;
-		Error = {error, _Reason} ->
-			Error
-	end.
+	catch throw : Error = {error, _Reason} -> Error end.
 
 
-trigger_stop () ->
-	try _ = rabbit:stop_and_halt (), ok catch _ : _ -> ok end,
-	ok.
+stop_applications () ->
+	try
+		ok = enforce_ok (rabbit:stop_and_halt ()),
+		ok
+	catch _ : Reason -> {error, Reason} end.
