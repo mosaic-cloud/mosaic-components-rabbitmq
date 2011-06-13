@@ -15,7 +15,7 @@ _erl_argv=(
 	"${_erl}"
 		"${_erl_args[@]}"
 		-noinput -noshell
-		-name "mosaic-rabbitmq-${_identifier}@${_erl_host}" -setcookie "${_erl_cookie}"
+		-sname "mosaic-rabbitmq-${_identifier}@${_erl_host}" -setcookie "${_erl_cookie}"
 		-boot start_sasl
 		-config "${_outputs}/erlang/applications/mosaic_rabbitmq/priv/mosaic_rabbitmq.config"
 		-run mosaic_component_app boot
@@ -24,4 +24,5 @@ _erl_argv=(
 mosaic_component_identifier="${_identifier}" \
 mosaic_component_harness_input_descriptor=3 \
 mosaic_component_harness_output_descriptor=4 \
+ERL_EPMD_PORT="${_erl_epmd_port}" \
 exec "${_erl_argv[@]}" 3<&0- 4>&1- </dev/null >&2
