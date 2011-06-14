@@ -93,10 +93,11 @@ handle_info ({{mosaic_rabbitmq_callbacks_internals, acquire_return}, Outcome}, O
 		IdentifierString = erlang:binary_to_list (enforce_ok_1 (mosaic_component_coders:encode_component (Identifier))),
 		BrokerSocketIpString = erlang:binary_to_list (BrokerSocketIp),
 		ManagementSocketIpString = erlang:binary_to_list (ManagementSocketIp),
-		ok = enforce_ok (application:set_env (rabbit, tcp_listeners, [{BrokerSocketIpString, BrokerSocketPort}])),
-		ok = enforce_ok (application:set_env (rabbit_mochiweb, port, ManagementSocketPort)),
-		ok = enforce_ok (application:set_env (mnesia, dir, "/tmp/mosaic/components/rabbitmq/" ++ IdentifierString ++ "/mnesia")),
-		ok = enforce_ok (application:set_env (mnesia, core_dir, "/tmp/mosaic/components/rabbitmq/" ++ IdentifierString ++ "/mnesia")),
+		ok = enforce_ok (mosaic_component_callbacks:configure ([
+					{env, rabbit, tcp_listeners, [{BrokerSocketIpString, BrokerSocketPort}]},
+					{env, rabbit_mochiweb, port, ManagementSocketPort},
+					{env, mnesia, dir, "/tmp/mosaic/components/rabbitmq/" ++ IdentifierString ++ "/mnesia"},
+					{env, mnesia, core_dir, "/tmp/mosaic/components/rabbitmq/" ++ IdentifierString ++ "/mnesia"}])),
 		ok = enforce_ok (start_applications ()),
 		ok = enforce_ok (mosaic_component_callbacks:register_async (Group, {mosaic_rabbitmq_callbacks_internals, register_return})),
 		NewState = OldState#state{status = waiting_register_return, broker_socket = BrokerSocket, management_socket = ManagementSocket},
@@ -116,38 +117,12 @@ handle_info (Message, State = #state{status = Status}) ->
 
 
 configure () ->
-	try
-		ok = enforce_ok (load_applications ()),
-		AppEnvIdentifier = enforce_ok_1 (mosaic_generic_coders:application_env_get (identifier, mosaic_rabbitmq,
-					{decode, fun mosaic_component_coders:decode_component/1}, {default, undefined})),
-		OsEnvIdentifier = enforce_ok_1 (mosaic_generic_coders:os_env_get (mosaic_component_identifier,
-					{decode, fun mosaic_component_coders:decode_component/1}, {default, undefined})),
-		AppEnvGroup = enforce_ok_1 (mosaic_generic_coders:application_env_get (group, mosaic_rabbitmq,
-					{decode, fun mosaic_component_coders:decode_group/1}, {default, undefined})),
-		OsEnvGroup = enforce_ok_1 (mosaic_generic_coders:os_env_get (mosaic_component_group,
-					{decode, fun mosaic_component_coders:decode_group/1}, {default, undefined})),
-		HarnessInputDescriptor = enforce_ok_1 (mosaic_generic_coders:os_env_get (mosaic_component_harness_input_descriptor,
-					{decode, fun mosaic_generic_coders:decode_integer/1}, {error, missing_harness_input_descriptor})),
-		HarnessOutputDescriptor = enforce_ok_1 (mosaic_generic_coders:os_env_get (mosaic_component_harness_output_descriptor,
-					{decode, fun mosaic_generic_coders:decode_integer/1}, {error, missing_harness_output_descriptor})),
-		Identifier = if
-			(OsEnvIdentifier =/= undefined) -> OsEnvIdentifier;
-			(AppEnvIdentifier =/= undefined) -> AppEnvIdentifier;
-			true -> throw ({error, missing_identifier})
-		end,
-		Group = if
-			(OsEnvGroup =/= undefined) -> OsEnvGroup;
-			(AppEnvGroup =/= undefined) -> AppEnvGroup;
-			true -> throw ({error, missing_group})
-		end,
-		IdentifierString = erlang:binary_to_list (enforce_ok_1 (mosaic_component_coders:encode_component (Identifier))),
-		GroupString = erlang:binary_to_list (enforce_ok_1 (mosaic_component_coders:encode_group (Group))),
-		ok = enforce_ok (application:set_env (mosaic_rabbitmq, identifier, IdentifierString)),
-		ok = enforce_ok (application:set_env (mosaic_rabbitmq, group, GroupString)),
-		ok = enforce_ok (application:set_env (mosaic_component, harness_input_descriptor, HarnessInputDescriptor)),
-		ok = enforce_ok (application:set_env (mosaic_component, harness_output_descriptor, HarnessOutputDescriptor)),
-		ok
-	catch throw : {error, Reason} -> {error, {failed_configuring, Reason}} end.
+	mosaic_component_callbacks:configure ([
+				{load, mosaic_rabbitmq, with_dependencies},
+				{load, fun () -> case resolve_applications () of {ok, A1, A2} -> {ok, A1 ++ A2}; E = {error, _} -> E end end, without_dependencies},
+				{identifier, mosaic_rabbitmq},
+				{group, mosaic_rabbitmq},
+				harness]).
 
 
 resolve_applications () ->
@@ -160,15 +135,6 @@ resolve_applications () ->
 		OptionalApplicationsStep2 = if ManagementEnabled -> [rabbit_management_agent, rabbit_management]; true -> [] end,
 		{ok, MandatoryApplicationsStep1 ++ OptionalApplicationsStep1, MandatoryApplicationsStep2 ++ OptionalApplicationsStep2}
 	catch throw : {error, Reason} -> {error, {failed_resolving_applications, Reason}} end.
-
-
-load_applications () ->
-	try
-		ok = enforce_ok (mosaic_application_tools:load (mosaic_rabbitmq, with_dependencies)),
-		{ApplicationsStep1, ApplicationsStep2} = enforce_ok_2 (resolve_applications ()),
-		ok = enforce_ok (mosaic_application_tools:load (ApplicationsStep1 ++ ApplicationsStep2, without_dependencies)),
-		ok
-	catch throw : {error, Reason} -> {error, {failed_loading_applications, Reason}} end.
 
 
 start_applications () ->
