@@ -118,7 +118,7 @@ handle_info (Message, State = #state{status = Status}) ->
 
 configure () ->
 	mosaic_component_callbacks:configure ([
-				{load, mosaic_rabbitmq, with_dependencies},
+				{load, mosaic_rabbitmq, without_dependencies},
 				{load, fun () -> case resolve_applications () of {ok, A1, A2} -> {ok, A1 ++ A2}; E = {error, _} -> E end end, without_dependencies},
 				{identifier, mosaic_rabbitmq},
 				{group, mosaic_rabbitmq},
@@ -143,15 +143,14 @@ start_applications () ->
 		ok = enforce_ok (mosaic_application_tools:start (ApplicationsStep1, without_dependencies)),
 		ok = enforce_ok (rabbit:prepare ()),
 		ok = enforce_ok (mosaic_application_tools:start (ApplicationsStep2, without_dependencies)),
-		ok = enforce_ok (mosaic_application_tools:start (mosaic_rabbitmq, with_dependencies)),
+		ok = enforce_ok (mosaic_application_tools:start (mosaic_rabbitmq, without_dependencies)),
 		ok
 	catch throw : {error, Reason} -> {error, {failed_starting_applications, Reason}} end.
 
 
 stop_applications () ->
-	try
-		ok = enforce_ok (rabbit:stop_and_halt ())
-	catch _ : Reason -> {error, {failed_stopping_applications, Reason}} end.
+	_ = rabbit:stop_and_halt ().
+
 
 stop_applications_async () ->
 	_ = erlang:spawn (
