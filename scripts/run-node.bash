@@ -39,4 +39,7 @@ else
 	)
 fi
 
+mkdir -p "/tmp/mosaic/components/${_identifier}"
+cd "/tmp/mosaic/components/${_identifier}"
+
 exec env "${_erl_env[@]}" "${_erl_argv[@]}"

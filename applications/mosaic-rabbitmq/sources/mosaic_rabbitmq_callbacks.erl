@@ -155,18 +155,15 @@ load_applications () ->
 	catch throw : Error = {error, _Reason} -> Error end.
 
 
-setup_applications (Identifier, BrokerSocket, ManagementSocket) ->
+setup_applications (_Identifier, BrokerSocket, ManagementSocket) ->
 	try
 		{BrokerSocketIp, BrokerSocketPort} = BrokerSocket,
 		{ManagementSocketIp, ManagementSocketPort} = ManagementSocket,
-		IdentifierString = erlang:binary_to_list (enforce_ok_1 (mosaic_component_coders:encode_component (Identifier))),
 		BrokerSocketIpString = erlang:binary_to_list (BrokerSocketIp),
 		ManagementSocketIpString = erlang:binary_to_list (ManagementSocketIp),
 		ok = enforce_ok (mosaic_component_callbacks:configure ([
 					{env, rabbit, tcp_listeners, [{BrokerSocketIpString, BrokerSocketPort}]},
-					{env, rabbit_mochiweb, port, ManagementSocketPort},
-					{env, mnesia, dir, "/tmp/mosaic/components/rabbitmq/" ++ IdentifierString ++ "/mnesia"},
-					{env, mnesia, core_dir, "/tmp/mosaic/components/rabbitmq/" ++ IdentifierString ++ "/mnesia"}])),
+					{env, rabbit_mochiweb, port, ManagementSocketPort}])),
 		ok
 	catch throw : Error = {error, _Reason} -> Error end.
 
