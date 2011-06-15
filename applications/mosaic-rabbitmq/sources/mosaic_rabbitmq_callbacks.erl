@@ -155,8 +155,9 @@ load_applications () ->
 	catch throw : Error = {error, _Reason} -> Error end.
 
 
-setup_applications (_Identifier, BrokerSocket, ManagementSocket) ->
+setup_applications (Identifier, BrokerSocket, ManagementSocket) ->
 	try
+		IdentifierString = enforce_ok_1 (mosaic_component_coders:encode_component (Identifier)),
 		{BrokerSocketIp, BrokerSocketPort} = BrokerSocket,
 		{ManagementSocketIp, ManagementSocketPort} = ManagementSocket,
 		BrokerSocketIpString = erlang:binary_to_list (BrokerSocketIp),
@@ -164,6 +165,10 @@ setup_applications (_Identifier, BrokerSocket, ManagementSocket) ->
 		ok = enforce_ok (mosaic_component_callbacks:configure ([
 					{env, rabbit, tcp_listeners, [{BrokerSocketIpString, BrokerSocketPort}]},
 					{env, rabbit_mochiweb, port, ManagementSocketPort}])),
+		ok = error_logger:info_report (["Configuring mOSAIC RabbitMq component...",
+					{identifier, IdentifierString},
+					{url, erlang:list_to_binary ("http://" ++ ManagementSocketIpString ++ ":" ++ erlang:integer_to_list (ManagementSocketPort) ++ "/")},
+					{broker_endpoint, BrokerSocket}, {management_endpoint, ManagementSocket}]),
 		ok
 	catch throw : Error = {error, _Reason} -> Error end.
 
