@@ -113,8 +113,8 @@ standalone () ->
 standalone_1 () ->
 	try
 		Identifier = <<0 : 160>>,
-		BrokerSocket = {<<"0.0.0.0">>, 21688},
-		ManagementSocket = {<<"0.0.0.0">>, 29800},
+		BrokerSocket = {<<"127.0.0.1">>, 21688},
+		ManagementSocket = {<<"127.0.0.1">>, 29800},
 		ok = enforce_ok (load_applications ()),
 		ok = enforce_ok (setup_applications (Identifier, BrokerSocket, ManagementSocket)),
 		ok = enforce_ok (start_applications ()),
