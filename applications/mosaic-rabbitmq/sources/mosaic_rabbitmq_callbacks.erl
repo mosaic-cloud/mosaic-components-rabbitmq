@@ -4,7 +4,7 @@
 -behaviour (mosaic_component_callbacks).
 
 
--export ([configure/0]).
+-export ([configure/0, standalone/0]).
 -export ([init/0, terminate/2, handle_call/5, handle_cast/4, handle_info/2]).
 
 
@@ -88,16 +88,7 @@ handle_info ({{mosaic_rabbitmq_callbacks_internals, acquire_return}, Outcome}, O
 		Descriptors = enforce_ok_1 (Outcome),
 		[BrokerSocket, ManagementSocket] = enforce_ok_1 (mosaic_component_coders:decode_socket_ipv4_tcp_descriptors (
 					[<<"broker_socket">>, <<"management_socket">>], Descriptors)),
-		{BrokerSocketIp, BrokerSocketPort} = BrokerSocket,
-		{ManagementSocketIp, ManagementSocketPort} = ManagementSocket,
-		IdentifierString = erlang:binary_to_list (enforce_ok_1 (mosaic_component_coders:encode_component (Identifier))),
-		BrokerSocketIpString = erlang:binary_to_list (BrokerSocketIp),
-		ManagementSocketIpString = erlang:binary_to_list (ManagementSocketIp),
-		ok = enforce_ok (mosaic_component_callbacks:configure ([
-					{env, rabbit, tcp_listeners, [{BrokerSocketIpString, BrokerSocketPort}]},
-					{env, rabbit_mochiweb, port, ManagementSocketPort},
-					{env, mnesia, dir, "/tmp/mosaic/components/rabbitmq/" ++ IdentifierString ++ "/mnesia"},
-					{env, mnesia, core_dir, "/tmp/mosaic/components/rabbitmq/" ++ IdentifierString ++ "/mnesia"}])),
+		ok = enforce_ok (setup_applications (Identifier, BrokerSocket, ManagementSocket)),
 		ok = enforce_ok (start_applications ()),
 		ok = enforce_ok (mosaic_component_callbacks:register_async (Group, {mosaic_rabbitmq_callbacks_internals, register_return})),
 		NewState = OldState#state{status = waiting_register_return, broker_socket = BrokerSocket, management_socket = ManagementSocket},
@@ -116,13 +107,30 @@ handle_info (Message, State = #state{status = Status}) ->
 	{stop, {error, {invalid_message, Message}}, State}.
 
 
+standalone () ->
+	mosaic_application_tools:boot (fun standalone_1/0).
+
+standalone_1 () ->
+	try
+		Identifier = <<0 : 160>>,
+		BrokerSocket = {<<"0.0.0.0">>, 21688},
+		ManagementSocket = {<<"0.0.0.0">>, 29800},
+		ok = enforce_ok (load_applications ()),
+		ok = enforce_ok (setup_applications (Identifier, BrokerSocket, ManagementSocket)),
+		ok = enforce_ok (start_applications ()),
+		ok
+	catch throw : Error = {error, _Reason} -> Error end.
+
+
 configure () ->
-	mosaic_component_callbacks:configure ([
-				{load, mosaic_rabbitmq, without_dependencies},
-				{load, fun () -> case resolve_applications () of {ok, A1, A2} -> {ok, A1 ++ A2}; E = {error, _} -> E end end, without_dependencies},
-				{identifier, mosaic_rabbitmq},
-				{group, mosaic_rabbitmq},
-				harness]).
+	try
+		ok = enforce_ok (load_applications ()),
+		ok = enforce_ok (mosaic_component_callbacks:configure ([
+					{identifier, mosaic_rabbitmq},
+					{group, mosaic_rabbitmq},
+					harness])),
+		ok
+	catch throw : Error = {error, _Reason} -> Error end.
 
 
 resolve_applications () ->
@@ -134,7 +142,33 @@ resolve_applications () ->
 		OptionalApplicationsStep1 = if ManagementEnabled -> [inets, crypto, mochiweb, webmachine, rabbit_mochiweb]; true -> [] end,
 		OptionalApplicationsStep2 = if ManagementEnabled -> [rabbit_management_agent, rabbit_management]; true -> [] end,
 		{ok, MandatoryApplicationsStep1 ++ OptionalApplicationsStep1, MandatoryApplicationsStep2 ++ OptionalApplicationsStep2}
-	catch throw : {error, Reason} -> {error, {failed_resolving_applications, Reason}} end.
+	catch throw : Error = {error, _Reason} -> Error end.
+
+
+load_applications () ->
+	try
+		ok = enforce_ok (mosaic_application_tools:load (mosaic_rabbitmq, without_dependencies)),
+		{ApplicationsStep1, ApplicationsStep2} = enforce_ok_2 (resolve_applications ()),
+		ok = enforce_ok (mosaic_application_tools:load (ApplicationsStep1, without_dependencies)),
+		ok = enforce_ok (mosaic_application_tools:load (ApplicationsStep2, without_dependencies)),
+		ok
+	catch throw : Error = {error, _Reason} -> Error end.
+
+
+setup_applications (Identifier, BrokerSocket, ManagementSocket) ->
+	try
+		{BrokerSocketIp, BrokerSocketPort} = BrokerSocket,
+		{ManagementSocketIp, ManagementSocketPort} = ManagementSocket,
+		IdentifierString = erlang:binary_to_list (enforce_ok_1 (mosaic_component_coders:encode_component (Identifier))),
+		BrokerSocketIpString = erlang:binary_to_list (BrokerSocketIp),
+		ManagementSocketIpString = erlang:binary_to_list (ManagementSocketIp),
+		ok = enforce_ok (mosaic_component_callbacks:configure ([
+					{env, rabbit, tcp_listeners, [{BrokerSocketIpString, BrokerSocketPort}]},
+					{env, rabbit_mochiweb, port, ManagementSocketPort},
+					{env, mnesia, dir, "/tmp/mosaic/components/rabbitmq/" ++ IdentifierString ++ "/mnesia"},
+					{env, mnesia, core_dir, "/tmp/mosaic/components/rabbitmq/" ++ IdentifierString ++ "/mnesia"}])),
+		ok
+	catch throw : Error = {error, _Reason} -> Error end.
 
 
 start_applications () ->
@@ -143,9 +177,8 @@ start_applications () ->
 		ok = enforce_ok (mosaic_application_tools:start (ApplicationsStep1, without_dependencies)),
 		ok = enforce_ok (rabbit:prepare ()),
 		ok = enforce_ok (mosaic_application_tools:start (ApplicationsStep2, without_dependencies)),
-		ok = enforce_ok (mosaic_application_tools:start (mosaic_rabbitmq, without_dependencies)),
 		ok
-	catch throw : {error, Reason} -> {error, {failed_starting_applications, Reason}} end.
+	catch throw : Error = {error, _Reason} -> Error end.
 
 
 stop_applications () ->
