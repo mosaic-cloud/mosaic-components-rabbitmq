@@ -8,7 +8,7 @@ _erl_run_argv=(
 	-env ERL_LIBS "${_deployment_erlang_path:-./erlang}/lib"
 	-env LANG C
 	-noshell -noinput
-	-sname -sname mosaic-rabbitmq-0000000000000000000000000000000000000000@localhost
+	-sname mosaic-rabbitmq-0000000000000000000000000000000000000000@localhost
 	-boot start_sasl
 	-config "${_deployment_erlang_path:-./erlang}/lib/mosaic_rabbitmq/priv/mosaic_rabbitmq.config"
 	-run mosaic_rabbitmq_callbacks standalone
