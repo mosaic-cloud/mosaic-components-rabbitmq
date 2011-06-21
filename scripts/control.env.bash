@@ -1,16 +1,13 @@
 #!/dev/null
 
-_erl_path=''
+_identifier="${mosaic_component_identifier:-000000001e12528cc806cba37318f48295d688db}"
 
-_erl_run_argv=(
-	+Bd +Ww
-	-env ERL_CRASH_DUMP /dev/null
-	-env ERL_LIBS "${_deployment_erlang_path:-./erlang}/lib"
-	-env LANG C
+_erl_args+=(
 	-noshell -noinput
-	-sname mosaic-rabbitmq-0000000000000000000000000000000000000000@localhost
+	-sname "mosaic-rabbitmq-${_identifier}@localhost"
+	-env mosaic_component_identifier "${_identifier}"
 	-boot start_sasl
-	-config "${_deployment_erlang_path:-./erlang}/lib/mosaic_rabbitmq/priv/mosaic_rabbitmq.config"
+	-config "${_deployment_erlang_path}/lib/mosaic_rabbitmq/priv/mosaic_rabbitmq.config"
 	-run mosaic_rabbitmq_callbacks standalone
 )
 
