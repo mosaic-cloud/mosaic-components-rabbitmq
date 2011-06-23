@@ -6,15 +6,18 @@ if ! test "${#}" -le 1 ; then
 fi
 
 _identifier="${1:-000000001e12528cc806cba37318f48295d688db}"
+_fqdn="${mosaic_node_fqdn:-}"
 
 _erl_args+=(
 		-noinput -noshell
-		-sname "mosaic-rabbitmq-${_identifier}@${_erl_host}" -setcookie "${_erl_cookie}"
+		-name "mosaic-rabbitmq-${_identifier}@${_fqdn:-mosaic-0.loopback.vnet}"
+		-setcookie "${_erl_cookie}"
 		-boot start_sasl
-		-config "${_outputs}/erlang/applications/mosaic_rabbitmq/priv/mosaic_rabbitmq.config"
+		-config "${_erl_libs}/mosaic_rabbitmq/priv/mosaic_rabbitmq.config"
 )
 _erl_env+=(
 		mosaic_component_identifier="${_identifier}"
+		mosaic_node_fqdn="${_fqdn}"
 )
 
 if test "${_identifier}" != 000000001e12528cc806cba37318f48295d688db ; then
