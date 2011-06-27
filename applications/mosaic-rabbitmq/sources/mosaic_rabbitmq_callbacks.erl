@@ -31,18 +31,18 @@ terminate (_Reason, _State = #state{}) ->
 
 
 handle_call (<<"mosaic-rabbitmq:get-broker-endpoint">>, null, <<>>, _Sender, State = #state{status = executing, broker_socket = Socket}) ->
-	{SocketIp, SocketPort} = Socket,
+	{SocketIp, SocketPort, SocketFqdn} = Socket,
 	Outcome = {ok, {struct, [
-					{<<"transport">>, <<"tcp">>}, {<<"ip">>, SocketIp}, {<<"port">>, SocketPort},
-					{<<"url">>, erlang:iolist_to_binary (["amqp://", SocketIp, ":", erlang:integer_to_list (SocketPort), "/"])}
+					{<<"transport">>, <<"tcp">>}, {<<"ip">>, SocketIp}, {<<"port">>, SocketPort}, {<<"fqdn">>, SocketFqdn},
+					{<<"url">>, erlang:iolist_to_binary (["amqp://", SocketFqdn, ":", erlang:integer_to_list (SocketPort), "/"])}
 				]}, <<>>},
 	{reply, Outcome, State};
 	
 handle_call (<<"mosaic-rabbitmq:get-management-endpoint">>, null, <<>>, _Sender, State = #state{status = executing, management_socket = Socket}) ->
-	{SocketIp, SocketPort} = Socket,
+	{SocketIp, SocketPort, SocketFqdn} = Socket,
 	Outcome = {ok, {struct, [
-					{<<"ip">>, SocketIp}, {<<"port">>, SocketPort},
-					{<<"url">>, erlang:iolist_to_binary (["http://", SocketIp, ":", erlang:integer_to_list (SocketPort), "/"])}
+					{<<"ip">>, SocketIp}, {<<"port">>, SocketPort}, {<<"fqdn">>, SocketFqdn},
+					{<<"url">>, erlang:iolist_to_binary (["http://", SocketFqdn, ":", erlang:integer_to_list (SocketPort), "/"])}
 				]}, <<>>},
 	{reply, Outcome, State};
 	
@@ -116,8 +116,8 @@ standalone_1 () ->
 		ok = enforce_ok (mosaic_component_callbacks:configure ([{identifier, mosaic_rabbitmq}])),
 		Identifier = enforce_ok_1 (mosaic_generic_coders:application_env_get (identifier, mosaic_rabbitmq,
 					{decode, fun mosaic_component_coders:decode_component/1}, {error, missing_identifier})),
-		BrokerSocket = {<<"127.0.0.1">>, 21688},
-		ManagementSocket = {<<"127.0.0.1">>, 29800},
+		BrokerSocket = {<<"127.0.0.1">>, 21688, <<"127.0.0.1">>},
+		ManagementSocket = {<<"127.0.0.1">>, 29800, <<"127.0.0.1">>},
 		ok = enforce_ok (setup_applications (Identifier, BrokerSocket, ManagementSocket)),
 		ok = enforce_ok (start_applications ()),
 		ok
@@ -160,16 +160,18 @@ load_applications () ->
 setup_applications (Identifier, BrokerSocket, ManagementSocket) ->
 	try
 		IdentifierString = enforce_ok_1 (mosaic_component_coders:encode_component (Identifier)),
-		{BrokerSocketIp, BrokerSocketPort} = BrokerSocket,
-		{ManagementSocketIp, ManagementSocketPort} = ManagementSocket,
+		{BrokerSocketIp, BrokerSocketPort, BrokerSocketFqdn} = BrokerSocket,
+		{ManagementSocketIp, ManagementSocketPort, ManagementSocketFqdn} = ManagementSocket,
 		BrokerSocketIpString = erlang:binary_to_list (BrokerSocketIp),
+		BrokerSocketFqdnString = erlang:binary_to_list (BrokerSocketFqdn),
 		ManagementSocketIpString = erlang:binary_to_list (ManagementSocketIp),
+		ManagementSocketFqdnString = erlang:binary_to_list (ManagementSocketFqdn),
 		ok = enforce_ok (mosaic_component_callbacks:configure ([
 					{env, rabbit, tcp_listeners, [{BrokerSocketIpString, BrokerSocketPort}]},
 					{env, rabbit_mochiweb, port, ManagementSocketPort}])),
 		ok = error_logger:info_report (["Configuring mOSAIC RabbitMq component...",
 					{identifier, IdentifierString},
-					{url, erlang:list_to_binary ("http://" ++ ManagementSocketIpString ++ ":" ++ erlang:integer_to_list (ManagementSocketPort) ++ "/")},
+					{url, erlang:list_to_binary ("http://" ++ ManagementSocketFqdnString ++ ":" ++ erlang:integer_to_list (ManagementSocketPort) ++ "/")},
 					{broker_endpoint, BrokerSocket}, {management_endpoint, ManagementSocket}]),
 		ok
 	catch throw : Error = {error, _Reason} -> Error end.
