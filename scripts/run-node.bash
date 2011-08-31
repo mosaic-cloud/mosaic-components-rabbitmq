@@ -8,6 +8,14 @@ fi
 _identifier="${1:-000000001e12528cc806cba37318f48295d688db}"
 _fqdn="${mosaic_node_fqdn:-}"
 
+if test -n "${mosaic_component_temporary:-}" ; then
+	_tmp="${mosaic_component_temporary:-}"
+elif test -n "${mosaic_node_temporary:-}" ; then
+	_tmp="${mosaic_node_temporary}/components/${_identifier}"
+else
+	_tmp="/tmp/mosaic/components/${_identifier}"
+fi
+
 _erl_args+=(
 		-noinput -noshell
 		-name "mosaic-rabbitmq-${_identifier}@${_fqdn:-mosaic-0.loopback.vnet}"
@@ -17,6 +25,7 @@ _erl_args+=(
 )
 _erl_env+=(
 		mosaic_component_identifier="${_identifier}"
+		mosaic_component_temporary="${_tmp}"
 		mosaic_node_fqdn="${_fqdn}"
 )
 
@@ -35,7 +44,7 @@ else
 	)
 fi
 
-mkdir -p "/tmp/mosaic/components/${_identifier}"
-cd "/tmp/mosaic/components/${_identifier}"
+mkdir -p "${_tmp}"
+cd "${_tmp}"
 
 exec env "${_erl_env[@]}" "${_erl}" "${_erl_args[@]}"
