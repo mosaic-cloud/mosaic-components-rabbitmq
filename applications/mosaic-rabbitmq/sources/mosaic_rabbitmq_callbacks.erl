@@ -116,8 +116,8 @@ standalone_1 () ->
 		ok = enforce_ok (mosaic_component_callbacks:configure ([{identifier, mosaic_rabbitmq}])),
 		Identifier = enforce_ok_1 (mosaic_generic_coders:application_env_get (identifier, mosaic_rabbitmq,
 					{decode, fun mosaic_component_coders:decode_component/1}, {error, missing_identifier})),
-		BrokerSocket = {<<"127.0.0.1">>, 21688, <<"127.0.0.1">>},
-		ManagementSocket = {<<"127.0.0.1">>, 29800, <<"127.0.0.1">>},
+		BrokerSocket = {<<"0.0.0.0">>, 21688, <<"127.0.0.1">>},
+		ManagementSocket = {<<"0.0.0.0">>, 29800, <<"127.0.0.1">>},
 		ok = enforce_ok (setup_applications (Identifier, BrokerSocket, ManagementSocket)),
 		ok = enforce_ok (start_applications ()),
 		ok
