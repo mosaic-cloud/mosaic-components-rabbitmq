@@ -6,7 +6,7 @@ if ! test "${#}" -le 1 ; then
 fi
 
 _identifier="${1:-000000001e12528cc806cba37318f48295d688db}"
-_fqdn="${mosaic_node_fqdn:-}"
+_fqdn="${mosaic_node_fqdn:-mosaic-0.loopback.vnet}"
 
 if test -n "${mosaic_component_temporary:-}" ; then
 	_tmp="${mosaic_component_temporary:-}"
@@ -18,7 +18,7 @@ fi
 
 _erl_args+=(
 		-noinput -noshell
-		-name "mosaic-rabbitmq-${_identifier}@${_fqdn:-mosaic-0.loopback.vnet}"
+		-name "mosaic-rabbitmq-${_identifier}@${_fqdn}"
 		-setcookie "${_erl_cookie}"
 		-boot start_sasl
 		-config "${_erl_libs}/mosaic_rabbitmq/priv/mosaic_rabbitmq.config"
@@ -37,14 +37,16 @@ if test "${_identifier}" != 000000001e12528cc806cba37318f48295d688db ; then
 			mosaic_component_harness_input_descriptor=3
 			mosaic_component_harness_output_descriptor=4
 	)
-	exec  3<&0- 4>&1- </dev/null >&2
+	exec 3<&0- 4>&1- </dev/null >&2
 else
 	_erl_args+=(
 			-run mosaic_rabbitmq_callbacks standalone
 	)
 fi
 
-mkdir -p "${_tmp}"
-cd "${_tmp}"
+mkdir -p -- "${_tmp}"
+cd -- "${_tmp}"
 
 exec env "${_erl_env[@]}" "${_erl_bin}" "${_erl_args[@]}"
+
+exit 1
