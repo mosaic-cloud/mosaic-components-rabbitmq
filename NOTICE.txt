@@ -20,6 +20,7 @@ as part of the "mOSAIC -- Open-Source API and Platform for Multiple Clouds"
 research project (an EC FP7-ICT Grant, agreement 256910).
 
     http://developers.mosaic-cloud.eu/
+    http://www.ieat.ro/
 
 Developers:
  * Ciprian Dorin Craciun, ciprian@volution.ro / ciprian.craciun@gmail.com
