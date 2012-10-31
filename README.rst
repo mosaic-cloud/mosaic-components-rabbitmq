@@ -38,6 +38,8 @@ Just like a normal RabbitMQ, but listening on:
 * http://127.0.0.1:29800/ endpoint for the HTTP management interface;
 * ``amqp:127.0.0.1:21688`` endpoint for the AMQP interface;
 
+(The user identifiers and passwords are the default ``guest``, respectively ``guest`` **with administrative rights**.)
+
 See http://www.rabbitmq.com/ for details.
 
 
