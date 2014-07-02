@@ -1,7 +1,9 @@
 
 (vbs:require-erlang)
 
+(define _generated (vbs:path-join (vbs:resolve-environment-variable "_generated") "rabbitmq-mochiweb"))
+
 (vbs:define-erlang-application 'rabbit_mochiweb
 	dependencies: '(mochiweb webmachine)
 	erl: "\\./repositories/rabbitmq-mochiweb/src/.*\\.erl"
-	additional-ebin: "\\./\\.generated/rabbit_mochiweb\\.app")
+	additional-ebin: (vbs:path-join _generated "rabbit_mochiweb.app"))

@@ -1,9 +1,11 @@
 
 (vbs:require-erlang)
 
+(define _generated (vbs:path-join (vbs:resolve-environment-variable "_generated") "rabbitmq-management"))
+
 (vbs:define-erlang-application 'rabbit_management
 	dependencies: '(rabbit_management_agent rabbit_common amqp_client rabbit_mochiweb mochiweb webmachine)
 	erl: "\\./repositories/rabbitmq-management/src/.*\\.erl"
 	hrl: "\\./repositories/rabbitmq-management/include/.*\\.hrl"
-	additional-ebin: "\\./\\.generated/rabbit_management\\.app"
+	additional-ebin: (vbs:path-join _generated "rabbit_management.app")
 	additional-priv: "\\./repositories/rabbitmq-management/priv/(www|(www-api)|(www-cli))")
