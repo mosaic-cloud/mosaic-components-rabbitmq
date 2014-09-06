@@ -8,4 +8,5 @@
 	erl: "\\./repositories/rabbitmq-management/src/.*\\.erl"
 	hrl: "\\./repositories/rabbitmq-management/include/.*\\.hrl"
 	additional-ebin: (vbs:path-join _generated "rabbit_management.app")
-	additional-priv: "\\./repositories/rabbitmq-management/priv/(www|(www-api)|(www-cli))")
+	additional-priv: "\\./repositories/rabbitmq-management/priv/(www|(www-api)|(www-cli))"
+	otp-version: 15)

@@ -6,4 +6,5 @@
 (vbs:define-erlang-application 'rabbit_management_agent
 	dependencies: '(rabbit_common amqp_client)
 	erl: "\\./repositories/rabbitmq-management-agent/src/.*\\.erl"
-	additional-ebin: (vbs:path-join _generated "rabbit_management_agent.app"))
+	additional-ebin: (vbs:path-join _generated "rabbit_management_agent.app")
+	otp-version: 15)

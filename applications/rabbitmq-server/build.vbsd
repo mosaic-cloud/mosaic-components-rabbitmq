@@ -4,6 +4,7 @@
 (define _generated (vbs:path-join (vbs:resolve-environment-variable "_generated") "rabbitmq-server"))
 
 (vbs:define-erlang-application 'rabbit
+	dependencies: '()
 	erl:
 		(list
 			(vbs:paths-resolve "\\./repositories/rabbitmq-server/src/.*\\.erl")
@@ -13,17 +14,21 @@
 		(list
 			(vbs:paths-resolve "\\./repositories/rabbitmq-server/include/.*\\.hrl")
 			(vbs:path-join _generated "rabbit_framing.hrl"))
-	additional-ebin: (vbs:path-join _generated "rabbit.app"))
+	additional-ebin: (vbs:path-join _generated "rabbit.app")
+	otp-version: 15)
 
 (vbs:define-erlang-application 'rabbit_common
+	dependencies: '()
 	hrl:
 		(list
 			(vbs:paths-resolve "\\./repositories/rabbitmq-server/include/.*\\.hrl")
 			(vbs:path-join _generated "rabbit_framing.hrl"))
-	additional-ebin: (vbs:path-join _generated "rabbit_common.app"))
+	additional-ebin: (vbs:path-join _generated "rabbit_common.app")
+	otp-version: 15)
 
 (vbs:define-erlang-application 'amqp_client
 	dependencies: '(rabbit rabbit_common)
 	erl: "\\./repositories/rabbitmq-erlang-client/src/.*\\.erl"
 	hrl: "\\./repositories/rabbitmq-erlang-client/include/.*\\.hrl"
-	additional-ebin: (vbs:path-join _generated "amqp_client.app"))
+	additional-ebin: (vbs:path-join _generated "amqp_client.app")
+	otp-version: 15)

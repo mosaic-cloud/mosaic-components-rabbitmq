@@ -6,4 +6,5 @@
 (vbs:define-erlang-application 'rabbit_mochiweb
 	dependencies: '(mochiweb webmachine)
 	erl: "\\./repositories/rabbitmq-mochiweb/src/.*\\.erl"
-	additional-ebin: (vbs:path-join _generated "rabbit_mochiweb.app"))
+	additional-ebin: (vbs:path-join _generated "rabbit_mochiweb.app")
+	otp-version: 15)
