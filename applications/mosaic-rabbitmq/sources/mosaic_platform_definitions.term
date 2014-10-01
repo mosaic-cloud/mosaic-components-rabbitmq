@@ -1,0 +1,4 @@
+
+{process_group_alias, 'mosaic-components:rabbitmq', <<16#8cd74b5e4ecd322fd7bbfc762ed6cf7d601eede8 : 160>>}.
+{process_configurator, 'mosaic-components:rabbitmq', term, {mosaic_component_process_configurators, configure_hardcoded, defaults}}.
+{process_configurator, 'mosaic-components:rabbitmq', json, {mosaic_component_process_configurators, configure_hardcoded, defaults}}.
