@@ -108,9 +108,6 @@ handle_info (Message, State = #state{status = Status}) ->
 
 
 standalone () ->
-	mosaic_application_tools:boot (fun standalone_1/0).
-
-standalone_1 () ->
 	try
 		ok = enforce_ok (load_applications ()),
 		ok = enforce_ok (mosaic_component_callbacks:configure ([{identifier, mosaic_rabbitmq}])),
